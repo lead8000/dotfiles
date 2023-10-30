@@ -1,113 +1,116 @@
-# Edit this configuration file to define what should be installed on
-# your system.  Help is available in the configuration.nix(5) man page
-# and in the NixOS manual (accessible by running `nixos-help`).
-
-{ config, pkgs, callPackage, ... }:
+# configuration.nix
+{ config, pkgs, lib, system, ... }:
 
 {
   imports =
-    [ # Include the results of the hardware scan.
+    [ 
       ./hardware-configuration.nix
-      #./xmonad.nix
-      #~/.config/zotero/default.nix
     ];
 
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
+  boot.kernelModules = [ 
+    "btusb"
+    "vboxdrv"
+    "vboxnetflt"
+    "vboxnetadp"
+  ];
   
-  # networking.hostName = "nixos"; # Define your hostname.
   # Pick only one of the below networking options.
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-  networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
+  networking.hostName = "nixos"; # Define your hostname.
+  networking.networkmanager.enable = true; 
+  networking.resolvconf.enable = false;
+
+  hardware.pulseaudio.enable = true;
+
+  hardware.bluetooth.enable = true;
+  hardware.bluetooth.package = pkgs.bluezFull;
+
+  systemd.services.bluetooth = {
+    serviceConfig.ExecStart = [
+      ""
+      "${pkgs.bluezFull}/libexec/bluetooth/bluetoothd --experimental"
+    ];
+  };
 
   # Set your time zone.
-  # time.timeZone = "Europe/Amsterdam";
-
-  # Configure network proxy if necessary
-  # networking.proxy.default = "http://user:password@proxy:port/";
-  # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
+  services.timesyncd.enable = true;
+  services.timesyncd.servers = ["time.google.com"];
+  time.timeZone = "America/Havana"; 
 
   # Select internationalisation properties.
-  # i18n.defaultLocale = "en_US.UTF-8";
-  # console = {
-  #   font = "Lat2-Terminus16";
-  #   keyMap = "us";
-  #   useXkbConfig = true; # use xkbOptions in tty.
-  # };
+  i18n.defaultLocale = "en_US.UTF-8";
 
-  # Enable the X11 windowing system.
-  # services.xserver.enable = true;
-
-  # Configure keymap in X11
-  # services.xserver.layout = "us";
-  # services.xserver.xkbOptions = "eurosign:e,caps:escape";
+  console = {
+    font = "Lat2-Terminus16";
+    keyMap = lib.mkForce "us";
+    useXkbConfig = true; 
+  };
 
   nixpkgs.config = {
     pulseaudio = true;
     allowUnfree = true;
+    permittedInsecurePackages = [
+      "nodejs-16.20.2"
+      "qtwebkit-5.212.0-alpha4"
+    ];
+    packageOverrides = pkgs: {
+      unstable = import <nixos-unstable> { config = config.nixpkgs.config; };
+    };
   };
 
   services.xserver = {
     enable = true;
-    desktopManager = {
-      xterm.enable = false;
-      xfce.enable = true;
+    layout = "us";
+
+    windowManager = {
+      xmonad = {
+        enable = true;
+        enableContribAndExtras = true;
+        extraPackages = haskellPackages: [
+          haskellPackages.xmonad-contrib
+       	  haskellPackages.xmonad-extras
+      	  haskellPackages.xmonad
+        ];
+      };
     };
-    displayManager.defaultSession = "xfce";
+
+    displayManager = {
+      lightdm.enable = true;
+      sessionCommands = ''
+        ${pkgs.procps}/bin/pkill polybar || true
+        /run/current-system/sw/bin/start-polybar &
+	sleep 5
+	{pkgs.haskellPackages.xmonad}/bin/xmonad --restart
+      '';
+    };
   };
-	
-  # services.xserver = {
-  #   enable = true;   
-  #   desktopManager = {
-  #     xterm.enable = false;
-  #     xfce = {
-  #       enable = true;
-  #       noDesktop = true;
-  #       enableXfwm = false;
-  #     };
-  #   };
-  #   windowManager = {
-  #     xmonad = {
-  #       enable = true;
-  #       enableContribAndExtras = true;
-  #       extraPackages = haskellPackages : [
-  #         haskellPackages.xmonad-contrib
-  #         haskellPackages.xmonad-extras
-  #         haskellPackages.xmonad
-  #       ];
-  #     };
-  #   };
-  #   displayManager.defaultSession = "xfce+xmonad";
-  # };
-
-  # Enable CUPS to print documents.
-  # services.printing.enable = true;
-
-  # Enable sound.
-  # sound.enable = true;
-  # hardware.pulseaudio.enable = true;
-
-  # Enable touchpad support (enabled default in most desktopManager).
-  # services.xserver.libinput.enable = true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.leandro_driguez = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ]; # Enable ‘sudo’ for the user.
-  #   packages = with pkgs; [
-  #     firefox
-  #     tree
-  #   ];
+    extraGroups = [ 
+	"wheel" 
+	"docker" 
+        "audio"
+        "vboxusers"
+    ]; 
   };
+  users.extraGroups.vboxusers.members = [ "leandro_driguez" ];
+
+  environment.etc."polybar/config".source = /home/leandro_driguez/.config/polybar/header.conf;
 
   # List packages installed in system profile. To search, run:
-  # $ nix search wget
   environment.systemPackages = with pkgs; [
-    vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+    vim 
     neovim
     wget
     rofi
+    nethogs
+
+    haskellPackages.xmonad
+    polybar
 
     alacritty
     telegram-desktop
@@ -117,7 +120,6 @@
     unzip
     ntfs3g
 
-    vscode
     ranger
     bind
     postman
@@ -137,6 +139,7 @@
     cmake
     gnumake
     zlib
+    unrar
 
     nodePackages.pyright
 
@@ -145,48 +148,55 @@
     
     zsh
     ffmpeg
+
+    nodejs_18
+    libGL
+
+    docker
+    docker-compose
+
+    alsaLib
+    alsaUtils
+
+    jetbrains-mono
+
+    vlc
+    clipgrab
+
+    texlive.combined.scheme-full
+
+    home-manager
+
+    unstable.google-chrome
+
+    wireguard-tools
+
+    obsidian
+    activitywatch
+
+    (pkgs.writeShellScriptBin "start-polybar" ''
+        #!/bin/sh
+  	${pkgs.polybar}/bin/polybar header -c /home/leandro_driguez/.config/polybar/header.conf &
+    '')
   ];
 
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
-
   # List services that you want to enable:
+  virtualisation.docker.enable = true;
+  virtualisation.virtualbox.host.enable = true;
+  virtualisation.virtualbox.host.enableExtensionPack = true;
 
-  # Enable the OpenSSH daemon.
-  # services.openssh.enable = true;
-
-  # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
-
-  # Copy the NixOS configuration file and link it from the resulting system
-  # (/run/current-system/configuration.nix). This is useful in case you
-  # accidentally delete configuration.nix.
-  # system.copySystemConfiguration = true;
-
-  # This value determines the NixOS release from which the default
-  # settings for stateful data, like file locations and database versions
-  # on your system were taken. It's perfectly fine and recommended to leave
-  # this value at the release version of the first install of this system.
-  # Before changing this value read the documentation for this option
-  # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "23.05"; # Did you read the comment?
-
+  # services.openvpn.servers.myvpn.config = builtins.readFile "/root/.config/openvpn/config.ovpn";
 
   # for running AppImage
   boot.supportedFilesystems = [ "fuse" ];
 
-  services.openvpn.servers.myvpn.config = builtins.readFile "/root/.config/openvpn/config.ovpn";
+  services.udev.extraRules = ''
+    KERNEL=="vboxdrv", NAME="vboxdrv", OWNER="root", GROUP="vboxusers", MODE="0660"
+    KERNEL=="vboxdrvu", NAME="vboxdrvu", OWNER="root", GROUP="vboxusers", MODE="0660"
+    KERNEL=="vboxnetctl", NAME="vboxnetctl", OWNER="root", GROUP="vboxusers", MODE="0660"
+  '';
 
-  services.timesyncd.enable = true;
-  services.timesyncd.servers = ["time.google.com"];
-  time.timeZone = "America/Havana";
+  services.openvpn.servers.beepstream.config = builtins.readFile "/etc/nixos/beepstream.ovpn";
+
+  system.stateVersion = "23.05";
 }
-
