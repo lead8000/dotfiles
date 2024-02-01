@@ -25,12 +25,12 @@
   hardware.pulseaudio.enable = true;
 
   hardware.bluetooth.enable = true;
-  hardware.bluetooth.package = pkgs.bluezFull;
+  hardware.bluetooth.package = pkgs.bluez;
 
   systemd.services.bluetooth = {
     serviceConfig.ExecStart = [
       ""
-      "${pkgs.bluezFull}/libexec/bluetooth/bluetoothd --experimental"
+      "${pkgs.bluez}/libexec/bluetooth/bluetoothd --experimental"
     ];
   };
 
@@ -47,6 +47,9 @@
     keyMap = lib.mkForce "us";
     useXkbConfig = true; 
   };
+  fonts.packages = with pkgs; [
+    lato
+  ];
 
   nixpkgs.config = {
     pulseaudio = true;
@@ -63,6 +66,8 @@
   services.xserver = {
     enable = true;
     layout = "us";
+    xkbVariant = "intl";
+    xkbOptions = "caps:escape,ctrl:nocaps";
 
     windowManager = {
       xmonad = {
@@ -75,14 +80,16 @@
         ];
       };
     };
-
+    
     displayManager = {
       lightdm.enable = true;
-      sessionCommands = ''
-        ${pkgs.procps}/bin/pkill polybar || true
-        /run/current-system/sw/bin/start-polybar &
-	sleep 5
-	{pkgs.haskellPackages.xmonad}/bin/xmonad --restart
+      sessionCommands = lib.mkBefore ''
+        eval $(/run/current-system/sw/bin/gnome-keyring-daemon --start)
+        export SSH_AUTH_SOCK
+    	${pkgs.procps}/bin/pkill polybar || true
+    	/run/current-system/sw/bin/start-polybar &
+    	sleep 5
+    	${pkgs.haskellPackages.xmonad}/bin/xmonad --restart
       '';
     };
   };
@@ -122,7 +129,6 @@
 
     ranger
     bind
-    postman
     notion-app-enhanced
     mattermost-desktop
 
@@ -178,6 +184,38 @@
         #!/bin/sh
   	${pkgs.polybar}/bin/polybar header -c /home/leandro_driguez/.config/polybar/header.conf &
     '')
+
+    slack
+    discord
+
+    audacity
+
+    pandoc
+
+    microsoft-edge
+    ansible
+   
+    scrot
+
+    inkscape-with-extensions
+    typst 
+    gtk3
+    gtksourceview
+    python311Packages.tkinter
+
+    jabref
+
+    anydesk
+    gnome.gnome-clocks
+
+    pympress
+
+    erlang
+    rebar3
+    erlang-ls
+
+    elixir
+    elixir-ls
   ];
 
   # List services that you want to enable:
@@ -198,5 +236,13 @@
 
   services.openvpn.servers.beepstream.config = builtins.readFile "/etc/nixos/beepstream.ovpn";
 
-  system.stateVersion = "23.05";
+  nix.gc = {
+    automatic = true; # Enable automatic garbage collection
+    dates = "weekly"; # Set it to run weekly; could be daily, monthly, etc.
+    options = "--delete-older-than 30d"; # Remove generations older than 30 days
+  };
+
+  services.gnome.gnome-keyring.enable = true;
+
+  system.stateVersion = "23.11";
 }
