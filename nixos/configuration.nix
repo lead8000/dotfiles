@@ -48,7 +48,9 @@
     useXkbConfig = true; 
   };
   fonts.packages = with pkgs; [
+    font-awesome
     lato
+    noto-fonts-emoji
   ];
 
   nixpkgs.config = {
@@ -68,28 +70,14 @@
     layout = "us";
     xkbVariant = "intl";
     xkbOptions = "caps:escape,ctrl:nocaps";
-
-    windowManager = {
-      xmonad = {
-        enable = true;
-        enableContribAndExtras = true;
-        extraPackages = haskellPackages: [
-          haskellPackages.xmonad-contrib
-       	  haskellPackages.xmonad-extras
-      	  haskellPackages.xmonad
-        ];
-      };
-    };
     
     displayManager = {
-      lightdm.enable = true;
+      # lightdm.enable = true;
+      gdm.enable = true;
+      gdm.wayland = true;
       sessionCommands = lib.mkBefore ''
         eval $(/run/current-system/sw/bin/gnome-keyring-daemon --start)
         export SSH_AUTH_SOCK
-    	${pkgs.procps}/bin/pkill polybar || true
-    	/run/current-system/sw/bin/start-polybar &
-    	sleep 5
-    	${pkgs.haskellPackages.xmonad}/bin/xmonad --restart
       '';
     };
   };
@@ -106,7 +94,7 @@
   };
   users.extraGroups.vboxusers.members = [ "leandro_driguez" ];
 
-  environment.etc."polybar/config".source = /home/leandro_driguez/.config/polybar/header.conf;
+  programs.hyprland.enable = true;
 
   # List packages installed in system profile. To search, run:
   environment.systemPackages = with pkgs; [
@@ -115,9 +103,6 @@
     wget
     rofi
     nethogs
-
-    haskellPackages.xmonad
-    polybar
 
     alacritty
     telegram-desktop
@@ -173,17 +158,13 @@
 
     home-manager
 
-    unstable.google-chrome
+    google-chrome
+    chromedriver
 
     wireguard-tools
 
     obsidian
     activitywatch
-
-    (pkgs.writeShellScriptBin "start-polybar" ''
-        #!/bin/sh
-  	${pkgs.polybar}/bin/polybar header -c /home/leandro_driguez/.config/polybar/header.conf &
-    '')
 
     slack
     discord
@@ -216,12 +197,36 @@
 
     elixir
     elixir-ls
+
+    gnome.nautilus
+    font-awesome
+    picom
+    nitrogen
+
+    jq
+
+    jetbrains.idea-ultimate
+
+    waybar
+    hyprpaper
+
+    waylandpp
+   
+    gnome.zenity # file picker
+
+    grim # screenshot tool
+    slurp # regin selection
+    swappy # annotation
+    
+    ueberzugpp # terminal image previewer
   ];
 
   # List services that you want to enable:
   virtualisation.docker.enable = true;
   virtualisation.virtualbox.host.enable = true;
   virtualisation.virtualbox.host.enableExtensionPack = true;
+  virtualisation.virtualbox.guest.enable = true;
+
 
   # services.openvpn.servers.myvpn.config = builtins.readFile "/root/.config/openvpn/config.ovpn";
 
@@ -234,8 +239,6 @@
     KERNEL=="vboxnetctl", NAME="vboxnetctl", OWNER="root", GROUP="vboxusers", MODE="0660"
   '';
 
-  services.openvpn.servers.beepstream.config = builtins.readFile "/etc/nixos/beepstream.ovpn";
-
   nix.gc = {
     automatic = true; # Enable automatic garbage collection
     dates = "weekly"; # Set it to run weekly; could be daily, monthly, etc.
@@ -244,5 +247,5 @@
 
   services.gnome.gnome-keyring.enable = true;
 
-  system.stateVersion = "23.11";
+  system.stateVersion = "24.05";
 }
